@@ -1,0 +1,24 @@
+{
+  "similarity_thresholds": {
+    "duplicate": 0.80,
+    "similar": 0.70,
+    "description": "Thresholds for similarity detection (0-1). Higher values = more strict matching. Current settings optimized for same shoe model with different colors/angles."
+  },
+  "processing": {
+    "remove_background": true,
+    "clip_model": "openai/clip-vit-base-patch32",
+    "description": "Processing options. Set remove_background to false to skip background removal."
+  },
+  "output": {
+    "save_representatives": true,
+    "save_duplicates": true,
+    "save_similar": true,
+    "save_summary": true,
+    "description": "Control which outputs to save"
+  },
+  "advanced": {
+    "batch_size": 1,
+    "use_gpu": true,
+    "description": "Advanced settings for performance tuning"
+  }
+}
