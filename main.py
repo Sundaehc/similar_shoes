@@ -181,14 +181,14 @@ def main():
     parser.add_argument(
         "--duplicate-threshold",
         type=float,
-        default=0.80,
-        help="Similarity threshold for duplicates (default: 0.80)"
+        default=0.88,
+        help="Similarity threshold for grouping same style shoes (default: 0.82)"
     )
     parser.add_argument(
         "--similar-threshold",
         type=float,
-        default=0.70,
-        help="Similarity threshold for similar images (default: 0.70)"
+        default=0.50,
+        help="Lower threshold (set low to disable similar groups) (default: 0.50)"
     )
 
     args = parser.parse_args()
