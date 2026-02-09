@@ -53,4 +53,17 @@ class BackgroundRemover:
             output_path: Path to save output image
         """
         output_image = self.remove_background(input_path)
+
+        # Convert output path to Path object
+        output_path = Path(output_path)
+
+        # If saving as JPEG and image has alpha channel, convert to RGB
+        if output_path.suffix.lower() in ['.jpg', '.jpeg']:
+            if output_image.mode == 'RGBA':
+                # Create white background
+                rgb_image = Image.new('RGB', output_image.size, (255, 255, 255))
+                # Paste the image using alpha channel as mask
+                rgb_image.paste(output_image, mask=output_image.split()[3])
+                output_image = rgb_image
+
         output_image.save(output_path)
