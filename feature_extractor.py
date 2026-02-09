@@ -14,7 +14,7 @@ from pathlib import Path
 class ShoeFeatureExtractor:
     """Extracts features from shoe images using CLIP model."""
 
-    def __init__(self, model_name: str = "openai/clip-vit-base-patch32"):
+    def __init__(self, model_name: str = "openai/clip-vit-large-patch14"):
         """
         Initialize the feature extractor.
 
@@ -55,7 +55,17 @@ class ShoeFeatureExtractor:
 
         # Extract features
         with torch.no_grad():
-            image_features = self.model.get_image_features(**inputs)
+            out = self.model.get_image_features(**inputs)
+
+        # get_image_features 可能返回张量或 BaseModelOutputWithPooling（因 transformers 版本不同）
+        if not isinstance(out, torch.Tensor):
+            image_features = (
+                out.pooler_output
+                if getattr(out, "pooler_output", None) is not None
+                else out.last_hidden_state[:, 0]
+            )
+        else:
+            image_features = out
 
         # Normalize features
         image_features = image_features / image_features.norm(dim=-1, keepdim=True)
