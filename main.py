@@ -38,7 +38,9 @@ def get_image_files(directory: Path) -> List[Path]:
 def process_folder(input_dir: Path, output_dir: Path,
                   remove_bg: bool = True,
                   duplicate_threshold: float = 0.95,
-                  similar_threshold: float = 0.85):
+                  similar_threshold: float = 0.85,
+                  auto_deduplicate: bool = True,
+                  exact_duplicate_threshold: float = 0.99):
     """
     Process a folder of shoe images.
 
@@ -48,6 +50,8 @@ def process_folder(input_dir: Path, output_dir: Path,
         remove_bg: Whether to remove backgrounds
         duplicate_threshold: Threshold for duplicates
         similar_threshold: Threshold for similar images
+        auto_deduplicate: Whether to auto-remove exact duplicates
+        exact_duplicate_threshold: Threshold for exact duplicates (auto-removal)
     """
     print(f"\n{'='*60}")
     print(f"Processing folder: {input_dir}")
@@ -106,7 +110,9 @@ def process_folder(input_dir: Path, output_dir: Path,
     print("\nStep 3: Analyzing similarity and clustering...")
     analyzer = ShoeSimilarityAnalyzer(
         duplicate_threshold=duplicate_threshold,
-        similar_threshold=similar_threshold
+        similar_threshold=similar_threshold,
+        auto_deduplicate=auto_deduplicate,
+        exact_duplicate_threshold=exact_duplicate_threshold
     )
     groups = analyzer.find_similar_groups(features, valid_images)
 
@@ -143,7 +149,9 @@ def process_folder(input_dir: Path, output_dir: Path,
         "settings": {
             "duplicate_threshold": duplicate_threshold,
             "similar_threshold": similar_threshold,
-            "background_removal": remove_bg
+            "background_removal": remove_bg,
+            "auto_deduplicate": auto_deduplicate,
+            "exact_duplicate_threshold": exact_duplicate_threshold
         }
     }
 
@@ -181,7 +189,7 @@ def main():
     parser.add_argument(
         "--duplicate-threshold",
         type=float,
-        default=0.88,
+        default=0.90,
         help="Similarity threshold for grouping same style shoes (default: 0.82)"
     )
     parser.add_argument(
@@ -189,6 +197,17 @@ def main():
         type=float,
         default=0.50,
         help="Lower threshold (set low to disable similar groups) (default: 0.50)"
+    )
+    parser.add_argument(
+        "--no-auto-deduplicate",
+        action="store_true",
+        help="Disable automatic removal of exact duplicates (similarity >= 0.99)"
+    )
+    parser.add_argument(
+        "--exact-duplicate-threshold",
+        type=float,
+        default=0.99,
+        help="Threshold for exact duplicates to auto-remove (default: 0.99)"
     )
 
     args = parser.parse_args()
@@ -205,7 +224,9 @@ def main():
         output_dir=output_dir,
         remove_bg=not args.no_bg_removal,
         duplicate_threshold=args.duplicate_threshold,
-        similar_threshold=args.similar_threshold
+        similar_threshold=args.similar_threshold,
+        auto_deduplicate=not args.no_auto_deduplicate,
+        exact_duplicate_threshold=args.exact_duplicate_threshold
     )
 
 

@@ -25,16 +25,22 @@ class ShoeSimilarityAnalyzer:
     """Analyzes similarity between shoe images and creates clusters."""
 
     def __init__(self, duplicate_threshold: float = 0.95,
-                 similar_threshold: float = 0.85):
+                 similar_threshold: float = 0.85,
+                 auto_deduplicate: bool = True,
+                 exact_duplicate_threshold: float = 0.99):
         """
         Initialize the similarity analyzer.
 
         Args:
             duplicate_threshold: Threshold for considering shoes as duplicates (0-1)
             similar_threshold: Threshold for considering shoes as similar (0-1)
+            auto_deduplicate: If True, automatically remove exact duplicates instead of grouping
+            exact_duplicate_threshold: Threshold for exact duplicates (default: 0.99)
         """
         self.duplicate_threshold = duplicate_threshold
         self.similar_threshold = similar_threshold
+        self.auto_deduplicate = auto_deduplicate
+        self.exact_duplicate_threshold = exact_duplicate_threshold
 
     def calculate_similarity_matrix(self, features: np.ndarray) -> np.ndarray:
         """
@@ -85,20 +91,47 @@ class ShoeSimilarityAnalyzer:
                           (np.arange(n_images) != i)
             similar_indices = np.where(similar_mask)[0].tolist()
 
-            # Create duplicate group if found
+            # Handle duplicates
             if duplicate_indices:
                 duplicate_indices_filtered = [idx for idx in duplicate_indices if idx not in assigned]
                 if duplicate_indices_filtered:
-                    group = SimilarityGroup(
-                        representative_idx=i,
-                        representative_path=image_paths[i],
-                        similar_indices=duplicate_indices_filtered,
-                        similar_paths=[image_paths[idx] for idx in duplicate_indices_filtered],
-                        similarity_scores=[similarities[idx] for idx in duplicate_indices_filtered]
-                    )
-                    duplicate_groups.append(group)
-                    assigned.add(i)
-                    assigned.update(duplicate_indices_filtered)
+                    # Check if auto-deduplication is enabled for exact duplicates
+                    if self.auto_deduplicate:
+                        # Separate exact duplicates from near-duplicates
+                        exact_duplicates = [idx for idx in duplicate_indices_filtered
+                                          if similarities[idx] >= self.exact_duplicate_threshold]
+                        near_duplicates = [idx for idx in duplicate_indices_filtered
+                                         if similarities[idx] < self.exact_duplicate_threshold]
+
+                        # For exact duplicates, just mark them as assigned (auto-remove)
+                        if exact_duplicates:
+                            assigned.add(i)
+                            assigned.update(exact_duplicates)
+
+                        # For near-duplicates, create a group
+                        if near_duplicates:
+                            group = SimilarityGroup(
+                                representative_idx=i,
+                                representative_path=image_paths[i],
+                                similar_indices=near_duplicates,
+                                similar_paths=[image_paths[idx] for idx in near_duplicates],
+                                similarity_scores=[similarities[idx] for idx in near_duplicates]
+                            )
+                            duplicate_groups.append(group)
+                            assigned.add(i)
+                            assigned.update(near_duplicates)
+                    else:
+                        # Original behavior: create group for all duplicates
+                        group = SimilarityGroup(
+                            representative_idx=i,
+                            representative_path=image_paths[i],
+                            similar_indices=duplicate_indices_filtered,
+                            similar_paths=[image_paths[idx] for idx in duplicate_indices_filtered],
+                            similarity_scores=[similarities[idx] for idx in duplicate_indices_filtered]
+                        )
+                        duplicate_groups.append(group)
+                        assigned.add(i)
+                        assigned.update(duplicate_indices_filtered)
 
             # Create similar group if found
             elif similar_indices:
