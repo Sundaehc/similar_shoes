@@ -189,7 +189,7 @@ def main():
     parser.add_argument(
         "--duplicate-threshold",
         type=float,
-        default=0.90,
+        default=0.88,
         help="Similarity threshold for grouping same style shoes (default: 0.82)"
     )
     parser.add_argument(
