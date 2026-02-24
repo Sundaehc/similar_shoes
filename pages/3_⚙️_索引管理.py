@@ -95,34 +95,115 @@ output_dir = st.text_input(
     help="索引保存目录"
 )
 
+# Add option to create versioned backup
+col1, col2 = st.columns(2)
+with col1:
+    build_mode = st.radio(
+        "构建模式",
+        options=["增量添加", "重新构建"],
+        help="增量添加：将新图片添加到现有索引（自动去重）\n重新构建：清空旧索引，重新构建"
+    )
+with col2:
+    if build_mode == "重新构建":
+        create_backup = st.checkbox("备份旧索引", value=True, help="构建新索引前自动备份旧索引")
+        if create_backup and os.path.exists(output_dir):
+            st.caption(f"旧索引将备份到: {output_dir}_backup_[时间戳]")
+
+# Initialize session state for build status
+if 'build_status' not in st.session_state:
+    st.session_state.build_status = None
+if 'build_output' not in st.session_state:
+    st.session_state.build_output = ""
+if 'build_mode_used' not in st.session_state:
+    st.session_state.build_mode_used = None
+
+# Show previous build result if exists
+if st.session_state.build_status is not None:
+    if st.session_state.build_status == "success":
+        st.success(f"✅ 索引{'更新' if st.session_state.build_mode_used == '增量添加' else '构建'}成功！")
+        st.code(st.session_state.build_output, language="text")
+        if st.button("🗑️ 清除消息"):
+            st.session_state.build_status = None
+            st.session_state.build_output = ""
+            st.session_state.build_mode_used = None
+            st.rerun()
+    elif st.session_state.build_status == "error":
+        st.error(f"❌ 索引{'更新' if st.session_state.build_mode_used == '增量添加' else '构建'}失败")
+        st.code(st.session_state.build_output, language="text")
+        if st.button("🗑️ 清除消息"):
+            st.session_state.build_status = None
+            st.session_state.build_output = ""
+            st.session_state.build_mode_used = None
+            st.rerun()
+
 if st.button("🔨 开始构建索引", type="primary"):
     if not image_dir:
         st.error("请输入图片文件夹路径")
     elif not os.path.exists(image_dir):
         st.error(f"文件夹不存在: {image_dir}")
     else:
-        with st.spinner("正在构建索引，这可能需要几分钟..."):
+        # Clear previous build status
+        st.session_state.build_status = None
+        st.session_state.build_output = ""
+        st.session_state.build_mode_used = build_mode
+
+        # Backup old index if requested (only for rebuild mode)
+        if build_mode == "重新构建" and 'create_backup' in locals() and create_backup and os.path.exists(output_dir):
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_dir = f"{output_dir}_backup_{timestamp}"
             try:
+                import shutil
+                shutil.copytree(output_dir, backup_dir)
+                st.success(f"✅ 旧索引已备份到: {backup_dir}")
+            except Exception as e:
+                st.warning(f"备份失败: {e}")
+
+        with st.spinner(f"正在{'增量添加' if build_mode == '增量添加' else '构建'}索引，这可能需要几分钟..."):
+            st.warning("⚠️ 构建过程中请不要关闭浏览器或切换到其他页面，否则会中断构建")
+
+            try:
+                # Build command
+                cmd = [sys.executable, "build_index.py", image_dir, "-o", output_dir]
+                if build_mode == "增量添加":
+                    cmd.append("--incremental")
+
                 # Run build_index.py script
                 result = subprocess.run(
-                    [sys.executable, "build_index.py", image_dir, "-o", output_dir],
+                    cmd,
                     capture_output=True,
                     text=True,
                     cwd=os.getcwd()
                 )
 
                 if result.returncode == 0:
-                    st.success("✅ 索引构建成功！")
-                    st.code(result.stdout, language="text")
+                    st.session_state.build_status = "success"
+                    st.session_state.build_output = result.stdout
 
-                    st.info("💡 请刷新页面以加载新索引")
-                    if st.button("🔄 刷新页面"):
-                        st.rerun()
+                    # Clear the cached search engine to force reload
+                    if 'search_engine' in st.session_state:
+                        del st.session_state.search_engine
+
+                    # Reload search engine
+                    from streamlit import cache_resource
+                    cache_resource.clear()
+
+                    st.success(f"✅ 索引{'更新' if build_mode == '增量添加' else '构建'}成功！")
+                    st.code(result.stdout, language="text")
+                    st.success("🔄 索引已自动重新加载！")
+                    st.info("💡 可以直接使用新索引，无需重启应用")
+
+                    # Force rerun to refresh the page
+                    st.rerun()
                 else:
-                    st.error("❌ 索引构建失败")
+                    st.session_state.build_status = "error"
+                    st.session_state.build_output = result.stderr
+                    st.error(f"❌ 索引{'更新' if build_mode == '增量添加' else '构建'}失败")
                     st.code(result.stderr, language="text")
 
             except Exception as e:
+                st.session_state.build_status = "error"
+                st.session_state.build_output = str(e)
                 st.error(f"构建失败: {e}")
 
 st.divider()

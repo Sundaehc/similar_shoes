@@ -71,7 +71,8 @@ def deduplicate_images(image_files):
     return unique_images
 
 
-def build_index(image_dir: Path, index_dir: Path, use_gpu: bool = False, skip_dedup: bool = False, model_name: str = None):
+def build_index(image_dir: Path, index_dir: Path, use_gpu: bool = False, skip_dedup: bool = False,
+                model_name: str = None, incremental: bool = False):
     """
     Build a searchable index from images.
 
@@ -81,10 +82,26 @@ def build_index(image_dir: Path, index_dir: Path, use_gpu: bool = False, skip_de
         use_gpu: Whether to use GPU for indexing
         skip_dedup: Skip deduplication step
         model_name: CLIP model name (if None, uses config or default)
+        incremental: If True, add to existing index instead of rebuilding
     """
     print(f"\n{'='*60}")
-    print(f"Building Vector Index")
+    print(f"{'Incremental' if incremental else 'Building'} Vector Index")
     print(f"{'='*60}\n")
+
+    # Load existing index if incremental mode
+    existing_index = None
+    existing_paths_set = set()
+    if incremental and index_dir.exists():
+        try:
+            print("Loading existing index...")
+            existing_index = VectorIndex()
+            existing_index.load(index_dir, use_gpu=use_gpu)
+            existing_paths_set = set(existing_index.image_paths)
+            print(f"Existing index has {len(existing_paths_set)} images\n")
+        except Exception as e:
+            print(f"Warning: Could not load existing index: {e}")
+            print("Will create new index instead.\n")
+            existing_index = None
 
     # Get all images
     image_files = get_image_files(image_dir)
@@ -92,7 +109,17 @@ def build_index(image_dir: Path, index_dir: Path, use_gpu: bool = False, skip_de
         print(f"No images found in {image_dir}")
         return
 
-    print(f"Found {len(image_files)} images")
+    print(f"Found {len(image_files)} images in new directory")
+
+    # Filter out images that already exist in index
+    if existing_index:
+        new_image_files = [img for img in image_files if str(img) not in existing_paths_set]
+        print(f"Filtered out {len(image_files) - len(new_image_files)} images already in index")
+        image_files = new_image_files
+
+    if not image_files:
+        print("No new images to add.")
+        return
 
     # Deduplicate images
     if not skip_dedup:
@@ -130,14 +157,19 @@ def build_index(image_dir: Path, index_dir: Path, use_gpu: bool = False, skip_de
     features = np.array(features)
     print(f"\nExtracted features from {len(features)} images")
 
-    # Build index
-    print("\nBuilding Faiss index...")
-    index = VectorIndex(dimension=features.shape[1])
-
-    # Create metadata (optional: add product info, price, etc.)
-    metadata = [{'filename': img.name, 'path': str(img)} for img in valid_images]
-
-    index.build_index(features, valid_images, metadata=metadata, use_gpu=use_gpu)
+    # Build or update index
+    if existing_index:
+        # Incremental mode: add to existing index
+        print("\nAdding new images to existing index...")
+        metadata = [{'filename': img.name, 'path': str(img)} for img in valid_images]
+        existing_index.add_images(features, valid_images, metadata=metadata)
+        index = existing_index
+    else:
+        # Build new index
+        print("\nBuilding new Faiss index...")
+        index = VectorIndex(dimension=features.shape[1])
+        metadata = [{'filename': img.name, 'path': str(img)} for img in valid_images]
+        index.build_index(features, valid_images, metadata=metadata, use_gpu=use_gpu)
 
     # Save index
     print(f"\nSaving index to {index_dir}...")
@@ -146,7 +178,7 @@ def build_index(image_dir: Path, index_dir: Path, use_gpu: bool = False, skip_de
     # Print stats
     stats = index.get_stats()
     print(f"\n{'='*60}")
-    print("Index built successfully!")
+    print(f"Index {'updated' if existing_index else 'built'} successfully!")
     print(f"{'='*60}")
     print(f"Total images indexed: {stats['total_images']}")
     print(f"Feature dimension: {stats['dimension']}")
@@ -179,6 +211,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Skip deduplication step (keep all images including duplicates)"
     )
+    parser.add_argument(
+        "--incremental",
+        action="store_true",
+        help="Add to existing index instead of rebuilding (automatically deduplicates)"
+    )
 
     args = parser.parse_args()
 
@@ -188,4 +225,5 @@ if __name__ == "__main__":
         exit(1)
 
     index_dir = Path(args.output)
-    build_index(image_dir, index_dir, use_gpu=args.gpu, skip_dedup=args.skip_dedup)
+    build_index(image_dir, index_dir, use_gpu=args.gpu, skip_dedup=args.skip_dedup,
+                incremental=args.incremental)
