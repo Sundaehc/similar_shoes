@@ -16,12 +16,12 @@ if 'search_engine' not in st.session_state or st.session_state.search_engine is 
 if 'batch_results' not in st.session_state:
     st.session_state.batch_results = []
 
-st.info("📌 批量上传图片进行搜索，最多支持20张图片")
+st.info("📌 批量上传图片，系统将自动检测每张图片是否有同款，最多支持20张图片")
 
 # Upload multiple images
 uploaded_files = st.file_uploader(
     "上传多张查询图片",
-    type=['jpg', 'jpeg', 'png', 'bmp'],
+    type=['jpg', 'jpeg', 'png', 'bmp', 'webp'],
     accept_multiple_files=True
 )
 
@@ -32,14 +32,7 @@ if uploaded_files:
 
     st.success(f"✅ 已上传 {len(uploaded_files)} 张图片")
 
-    # Search parameters
-    col1, col2 = st.columns(2)
-    with col1:
-        top_k = st.slider("每张图片返回结果数量 (top_k)", min_value=1, max_value=20, value=5)
-    with col2:
-        min_similarity = st.slider("最小相似度阈值", min_value=0.0, max_value=1.0, value=0.0, step=0.05)
-
-    if st.button("🚀 开始批量搜索", type="primary"):
+    if st.button("🚀 开始批量检测", type="primary"):
         st.session_state.batch_results = []
         progress_bar = st.progress(0)
         status_text = st.empty()
@@ -49,16 +42,23 @@ if uploaded_files:
 
             try:
                 query_image = Image.open(uploaded_file)
+                # Use preset parameters for duplicate detection
                 results = st.session_state.search_engine.search(
                     query_image,
-                    top_k=top_k,
-                    min_similarity=min_similarity
+                    top_k=20,
+                    min_similarity=0.85
                 )
+
+                # Categorize results
+                exact_matches = [(img_path, score, metadata) for img_path, score, metadata in results if score >= 0.90]
+                similar_matches = [(img_path, score, metadata) for img_path, score, metadata in results if 0.85 <= score < 0.90]
 
                 st.session_state.batch_results.append({
                     'filename': uploaded_file.name,
                     'query_image': query_image,
-                    'results': results
+                    'results': results,
+                    'exact_matches': exact_matches,
+                    'similar_matches': similar_matches
                 })
 
             except Exception as e:
@@ -93,25 +93,65 @@ if st.session_state.batch_results:
 
             with col2:
                 if 'error' in batch_result:
-                    st.error(f"搜索失败: {batch_result['error']}")
+                    st.error(f"检测失败: {batch_result['error']}")
                 elif len(batch_result['results']) == 0:
-                    st.warning("未找到符合条件的相似图片")
+                    st.warning("❌ 未找到同款")
+                    st.info("数据库中没有与此图片相似度超过 85% 的商品")
                 else:
-                    st.success(f"找到 {len(batch_result['results'])} 个相似图片")
+                    exact_matches = batch_result.get('exact_matches', [])
+                    similar_matches = batch_result.get('similar_matches', [])
 
-                    # Display results in grid
-                    cols_per_row = 4
-                    for i in range(0, len(batch_result['results']), cols_per_row):
-                        cols = st.columns(cols_per_row)
-                        for j, col in enumerate(cols):
-                            idx = i + j
-                            if idx < len(batch_result['results']):
-                                img_path, score, metadata = batch_result['results'][idx]
-                                with col:
-                                    try:
-                                        img = Image.open(img_path)
-                                        img.thumbnail((200, 200))
-                                        st.image(img, use_container_width=True)
-                                        st.caption(f"相似度: {score:.4f}")
-                                    except Exception as e:
-                                        st.error(f"无法加载: {str(e)}")
+                    # Display summary
+                    if exact_matches:
+                        st.success(f"✅ 找到 {len(exact_matches)} 个同款！")
+                        if similar_matches:
+                            st.info(f"另外还有 {len(similar_matches)} 个相似款")
+                    else:
+                        st.success(f"✅ 找到 {len(similar_matches)} 个相似款")
+                        st.info("相似度在 85%-90% 之间")
+
+                    st.divider()
+
+                    # Display exact matches
+                    if exact_matches:
+                        st.markdown("**🎯 同款商品**")
+                        st.caption("相似度 ≥ 90%")
+
+                        cols_per_row = 4
+                        for i in range(0, len(exact_matches), cols_per_row):
+                            cols = st.columns(cols_per_row)
+                            for j, col in enumerate(cols):
+                                idx = i + j
+                                if idx < len(exact_matches):
+                                    img_path, score, metadata = exact_matches[idx]
+                                    with col:
+                                        try:
+                                            img = Image.open(img_path)
+                                            img.thumbnail((200, 200))
+                                            st.image(img, use_container_width=True)
+                                            st.caption(f"✅ {score:.1%}")
+                                        except Exception as e:
+                                            st.error(f"无法加载")
+
+                    # Display similar matches
+                    if similar_matches:
+                        if exact_matches:
+                            st.divider()
+                        st.markdown("**🔍 相似款**")
+                        st.caption("相似度 85%-90%")
+
+                        cols_per_row = 4
+                        for i in range(0, len(similar_matches), cols_per_row):
+                            cols = st.columns(cols_per_row)
+                            for j, col in enumerate(cols):
+                                idx = i + j
+                                if idx < len(similar_matches):
+                                    img_path, score, metadata = similar_matches[idx]
+                                    with col:
+                                        try:
+                                            img = Image.open(img_path)
+                                            img.thumbnail((200, 200))
+                                            st.image(img, use_container_width=True)
+                                            st.caption(f"📊 {score:.1%}")
+                                        except Exception as e:
+                                            st.error(f"无法加载")
