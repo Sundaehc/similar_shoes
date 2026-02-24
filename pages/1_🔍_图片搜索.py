@@ -8,6 +8,19 @@ st.set_page_config(page_title="图片搜索", page_icon="🔍", layout="wide")
 
 st.title("🔍 同款检测")
 
+# Custom CSS to change button text
+st.markdown("""
+<style>
+[data-testid="stFileUploader"] section button {
+    font-size: 0;
+}
+[data-testid="stFileUploader"] section button::after {
+    content: "浏览文件";
+    font-size: 14px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Check if search engine is loaded
 if 'search_engine' not in st.session_state or st.session_state.search_engine is None:
     st.error("❌ 搜索引擎未加载，请先在索引管理页面构建索引")

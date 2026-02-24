@@ -10,7 +10,8 @@
       "Bash(git commit:*)",
       "Skill(superpowers:writing-plans)",
       "Skill(superpowers:subagent-driven-development)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(del \"e:\\shoes\\pages\\4_📊_结果对比.py\")"
     ],
     "deny": [],
     "ask": []

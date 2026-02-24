@@ -7,6 +7,19 @@ st.set_page_config(page_title="批量搜索", page_icon="📦", layout="wide")
 
 st.title("📦 批量搜索")
 
+# Custom CSS to change button text
+st.markdown("""
+<style>
+[data-testid="stFileUploader"] section button {
+    font-size: 0;
+}
+[data-testid="stFileUploader"] section button::after {
+    content: "浏览文件";
+    font-size: 14px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Check if search engine is loaded
 if 'search_engine' not in st.session_state or st.session_state.search_engine is None:
     st.error("❌ 搜索引擎未加载，请先在主页加载索引文件")
@@ -22,7 +35,8 @@ st.info("📌 批量上传图片，系统将自动检测每张图片是否有同
 uploaded_files = st.file_uploader(
     "上传多张查询图片",
     type=['jpg', 'jpeg', 'png', 'bmp', 'webp'],
-    accept_multiple_files=True
+    accept_multiple_files=True,
+    label_visibility="visible"
 )
 
 if uploaded_files:

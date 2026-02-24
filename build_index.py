@@ -9,9 +9,20 @@ from tqdm import tqdm
 import numpy as np
 import hashlib
 from PIL import Image
+import yaml
 
 from feature_extractor import ShoeFeatureExtractor
 from vector_index import VectorIndex
+
+
+def load_config():
+    """Load configuration from config.yaml."""
+    try:
+        with open('config.yaml', 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        print(f"Warning: Could not load config.yaml: {e}")
+        return {}
 
 
 def get_image_hash(image_path: Path) -> str:
@@ -60,7 +71,7 @@ def deduplicate_images(image_files):
     return unique_images
 
 
-def build_index(image_dir: Path, index_dir: Path, use_gpu: bool = False, skip_dedup: bool = False):
+def build_index(image_dir: Path, index_dir: Path, use_gpu: bool = False, skip_dedup: bool = False, model_name: str = None):
     """
     Build a searchable index from images.
 
@@ -69,6 +80,7 @@ def build_index(image_dir: Path, index_dir: Path, use_gpu: bool = False, skip_de
         index_dir: Directory to save the index
         use_gpu: Whether to use GPU for indexing
         skip_dedup: Skip deduplication step
+        model_name: CLIP model name (if None, uses config or default)
     """
     print(f"\n{'='*60}")
     print(f"Building Vector Index")
@@ -92,9 +104,14 @@ def build_index(image_dir: Path, index_dir: Path, use_gpu: bool = False, skip_de
         print("No images to process after deduplication.")
         return
 
+    # Load model name from config if not specified
+    if model_name is None:
+        config = load_config()
+        model_name = config.get('model', {}).get('name', 'openai/clip-vit-large-patch14')
+
     # Extract features
-    print("\nExtracting features with CLIP...")
-    extractor = ShoeFeatureExtractor()
+    print(f"\nExtracting features with CLIP model: {model_name}")
+    extractor = ShoeFeatureExtractor(model_name=model_name)
     features = []
     valid_images = []
 

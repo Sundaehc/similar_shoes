@@ -8,23 +8,40 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 from PIL import Image
 import shutil
+import yaml
 
 from feature_extractor import ShoeFeatureExtractor
 from vector_index import VectorIndex
 
 
+def load_config():
+    """Load configuration from config.yaml."""
+    try:
+        with open('config.yaml', 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        print(f"Warning: Could not load config.yaml: {e}")
+        return {}
+
+
 class ImageSearchEngine:
     """Search engine for finding similar shoe images."""
 
-    def __init__(self, index_dir: Path, use_gpu: bool = False):
+    def __init__(self, index_dir: Path, use_gpu: bool = False, model_name: str = None):
         """
         Initialize search engine.
 
         Args:
             index_dir: Directory containing the pre-built index
             use_gpu: Whether to use GPU for search
+            model_name: CLIP model name (if None, uses config or default)
         """
-        self.extractor = ShoeFeatureExtractor()
+        # Load model name from config if not specified
+        if model_name is None:
+            config = load_config()
+            model_name = config.get('model', {}).get('name', 'openai/clip-vit-large-patch14')
+
+        self.extractor = ShoeFeatureExtractor(model_name=model_name)
         self.index = VectorIndex()
         self.index.load(index_dir, use_gpu=use_gpu)
 

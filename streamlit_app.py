@@ -52,7 +52,7 @@ def cleanup_temp_files(upload_dir: Path, retention_days: int):
 def main():
     # Page config
     st.set_page_config(
-        page_title="鞋子图片搜索系统",
+        page_title="同款搜索",
         page_icon="👟",
         layout="wide",
         initial_sidebar_state="expanded"
@@ -78,7 +78,21 @@ def main():
         st.session_state.history_db = get_history_db(config['storage']['history_db'])
 
     # Main page
-    st.title("👟 鞋子图片搜索系统")
+    st.title("👟 同款搜索")
+
+    # Custom CSS to change button text
+    st.markdown("""
+    <style>
+    [data-testid="stFileUploader"] section button {
+        font-size: 0;
+    }
+    [data-testid="stFileUploader"] section button::after {
+        content: "浏览文件";
+        font-size: 14px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.markdown("---")
 
     # System status
@@ -129,7 +143,7 @@ def main():
     st.markdown("---")
     st.subheader("📖 功能导航")
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         st.page_link("pages/1_🔍_图片搜索.py", label="🔍 图片搜索", help="上传图片搜索相似商品")
@@ -139,9 +153,6 @@ def main():
 
     with col3:
         st.page_link("pages/3_⚙️_索引管理.py", label="⚙️ 索引管理", help="管理图片索引")
-
-    with col4:
-        st.page_link("pages/4_📊_结果对比.py", label="📊 结果对比", help="对比多个搜索结果")
 
 
 if __name__ == "__main__":

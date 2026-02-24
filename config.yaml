@@ -1,7 +1,15 @@
 app:
-  title: "鞋子图片搜索系统"
+  title: "同款搜索"
   port: 8501
   max_upload_size: 200
+
+model:
+  # CLIP 模型选择，不同模型有不同的特征维度和性能
+  # openai/clip-vit-base-patch32: 512维，速度快
+  # openai/clip-vit-base-patch16: 512维，平衡
+  # openai/clip-vit-large-patch14: 768维，精度高（默认）
+  # openai/clip-vit-large-patch14-336: 768维，更高分辨率
+  name: "openai/clip-vit-large-patch14"
 
 index:
   path: "index"

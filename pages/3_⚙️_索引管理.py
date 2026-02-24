@@ -153,7 +153,8 @@ if search_engine:
                         with col:
                             try:
                                 img = Image.open(sample_paths[idx])
-                                img.thumbnail((200, 200))
+                                # Resize to fixed size while maintaining aspect ratio
+                                img.thumbnail((300, 300), Image.Resampling.LANCZOS)
                                 st.image(img, use_container_width=True)
                                 st.caption(os.path.basename(sample_paths[idx]))
                             except Exception as e:
