@@ -11,7 +11,10 @@
       "Skill(superpowers:writing-plans)",
       "Skill(superpowers:subagent-driven-development)",
       "Bash(tree:*)",
-      "Bash(del \"e:\\shoes\\pages\\4_📊_结果对比.py\")"
+      "Bash(del \"e:\\shoes\\pages\\4_📊_结果对比.py\")",
+      "Bash(src/core/__init__.py)",
+      "Bash(src/web/__init__.py)",
+      "Bash(src/__init__.py)"
     ],
     "deny": [],
     "ask": []
