@@ -1,0 +1,18 @@
+app:
+  title: "鞋子图片搜索系统"
+  port: 8501
+  max_upload_size: 200
+
+index:
+  path: "index"
+  auto_load: true
+
+search:
+  default_top_k: 10
+  default_min_similarity: 0.5
+  max_batch_size: 20
+
+storage:
+  upload_dir: "uploads"
+  history_db: "data/search_history.db"
+  temp_file_retention_days: 7

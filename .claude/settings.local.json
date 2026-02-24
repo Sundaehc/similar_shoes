@@ -3,7 +3,14 @@
     "allow": [
       "Bash(dir /b)",
       "Bash(pip install:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Skill(superpowers:brainstorming)",
+      "Bash(if not exist \"docs\\plans\" mkdir \"docs\\plans\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:subagent-driven-development)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []
