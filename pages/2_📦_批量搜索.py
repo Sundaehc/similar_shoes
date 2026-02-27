@@ -30,7 +30,7 @@ if 'search_engine' not in st.session_state or st.session_state.search_engine is 
 if 'batch_results' not in st.session_state:
     st.session_state.batch_results = []
 
-st.info("📌 批量上传图片，系统将根据文件名前缀自动分组（例如：A_1.jpg, A_2.jpg 会归为一组），然后查找向量库中的同款，最多支持20张图片")
+st.info("📌 批量上传图片，系统将根据货号自动分组，然后查找向量库中的同款，最多支持20张图片")
 
 # Upload multiple images
 uploaded_files = st.file_uploader(
@@ -50,13 +50,9 @@ if uploaded_files:
     # Add grouping method selection
     grouping_method = st.radio(
         "分组方式",
-        options=["按文件名前缀分组", "按图片相似度自动分组"],
-        help="文件名前缀：根据文件名中的前缀自动分组（如 A_1.jpg, A_2.jpg 归为 A 组）\n图片相似度：使用AI自动识别同款图片"
+        options=["按货号分组", "按图片相似度自动分组"],
+        help="货号：根据货号自动分组，去掉末尾数字（颜色编号）\n图片相似度：使用AI自动识别同款图片"
     )
-
-    if grouping_method == "按文件名前缀分组":
-        st.info("💡 提示：文件名格式示例：A_1.jpg, A_2.jpg, B_1.jpg, B_2.jpg")
-        st.caption("系统会提取下划线或连字符前的部分作为组名")
 
     if st.button("🚀 开始批量检测", type="primary"):
         st.session_state.batch_results = []
@@ -94,18 +90,23 @@ if uploaded_files:
         st.info("📊 步骤 2/3: 对上传的图片进行分组...")
 
         if grouping_method == "按文件名前缀分组":
-            # Group by filename prefix
+            # Group by filename prefix (remove last 2 digits for color code)
             import re
             groups_dict = {}
 
             for idx, img_data in enumerate(uploaded_images):
                 filename = img_data['filename']
-                # Extract prefix before underscore, hyphen, or dot
-                match = re.match(r'^([^_\-\.]+)', filename)
-                if match:
-                    prefix = match.group(1)
+                # Remove file extension
+                name_without_ext = filename.rsplit('.', 1)[0]
+
+                # Extract style code (remove last 2 digits for color variants)
+                # Pattern: RA1261268DP02 -> RA1261268DP
+                if len(name_without_ext) >= 2 and name_without_ext[-2:].isdigit():
+                    # If ends with 2 digits, remove them (color code)
+                    prefix = name_without_ext[:-2]
                 else:
-                    prefix = filename
+                    # If doesn't end with 2 digits, use the whole name
+                    prefix = name_without_ext
 
                 if prefix not in groups_dict:
                     groups_dict[prefix] = []
@@ -115,7 +116,7 @@ if uploaded_files:
             groups = list(groups_dict.values())
             group_names = list(groups_dict.keys())
 
-            st.success(f"✅ 根据文件名将 {len(uploaded_images)} 张图片分为 {len(groups)} 组")
+            st.success(f"✅ 根据货号将 {len(uploaded_images)} 张图片分为 {len(groups)} 组")
             for name, group in zip(group_names, groups):
                 st.caption(f"  - 组 '{name}': {len(group)} 张图片")
 
